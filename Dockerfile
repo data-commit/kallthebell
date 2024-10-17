@@ -1,5 +1,5 @@
 # Stage 1: Build the application using Node.js 20.1
-FROM node:20.1 AS builder
+FROM node:23.0 AS builder
 
 # Set the working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Create the production image using Alpine
-FROM alpine:3.18
+FROM alpine:3.20
 
 # Install Node.js 20.1 in Alpine
 RUN apk add --update --no-cache nodejs=~20.1 npm
