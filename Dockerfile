@@ -1,41 +1,30 @@
-# Stage 1: Build the application using Node.js 20.1
-FROM node:20.1 AS builder
+# Use official Python runtime as base image
+FROM python:3.9-slim
 
-# Set the working directory
+# Set working directory in container
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN npm ci
+# Copy requirements file
+COPY requirements.txt .
 
-# Copy the rest of the application code
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
 COPY . .
 
-# Build the application (adjust this command based on your build process)
-RUN npm run build
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=development
 
-# Stage 2: Create the production image using Alpine
-FROM alpine:3.18
-
-# Install Node.js 20.1 in Alpine
-RUN apk add --update --no-cache nodejs=~20.1 npm
-
-# Set the working directory
-WORKDIR /app
-
-# Copy the built application from the builder stage
-COPY --from=builder /app/dist ./dist
-
-# Copy package.json and package-lock.json
-COPY --from=builder /app/package*.json ./
-
-# Install only production dependencies
-RUN npm ci --only=production
-
-# Expose the port your app runs on
-EXPOSE 3000
+# Expose port
+EXPOSE 5000
 
 # Command to run the application
-CMD ["node", "dist/index.js"]
+CMD ["flask", "run", "--host=0.0.0.0"]
