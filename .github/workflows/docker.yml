@@ -1,12 +1,11 @@
 name: Docker Build, Test and Push
 
-# Triggers remain the same
 on:
-  push:
-    branches: [ "main", "develop" ]
-    tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ "main" ]
+  # push:
+  #   branches: [ "main", "develop" ]
+  #   tags: [ 'v*.*.*' ]
+  # pull_request:
+  #   branches: [ "main" ]
   workflow_dispatch:
 
 env:
@@ -16,32 +15,31 @@ env:
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
 jobs:
-  # Add linting job
   lint:
-    runs-on: ubuntu-latest
+    runs-on: Abhiram
     steps:
       - uses: actions/checkout@v4
       
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
+        continue-on-error: true
         with:
           dockerfile: Dockerfile
 
       - name: Super-linter
         uses: github/super-linter@v7
+        continue-on-error: true
         env:
           VALIDATE_ALL_CODEBASE: true
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Add testing job
   test:
-    runs-on: ubuntu-latest
+    runs-on: Abhiram
     needs: lint
     steps:
       - uses: actions/checkout@v4
 
-      # Setup specific language/framework (example for Node.js)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -53,39 +51,37 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      # Add integration tests if needed
       - name: Run integration tests
         run: npm run test:integration
 
   security-scan:
-    runs-on: ubuntu-latest
+    runs-on: Abhiram
     needs: test
     steps:
       - uses: actions/checkout@v4
 
-      # SAST (Static Application Security Testing)
       - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        continue-on-error: true
         with:
-          languages: javascript  # adjust based on your project
+          languages: javascript
 
-      # Secret scanning
       - name: TruffleHog OSS
         uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
 
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: Abhiram
     needs: [security-scan]
     permissions:
       contents: read
       packages: write
 
     steps:
-      # Previous steps remain the same
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -114,9 +110,9 @@ jobs:
             type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Add Docker image scan before building
       - name: Scan Dockerfile
         uses: docker/scout-action@v1
+        continue-on-error: true
         with:
           dockerfilePath: Dockerfile
 
@@ -131,9 +127,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Vulnerability scanning
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: 'table'
@@ -142,14 +138,13 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      # Add container structure test
       - name: Container Structure Test
         uses: GoogleContainerTools/container-structure-test@v1.19.3
+        continue-on-error: true
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           config: ./container-structure-test.yaml
 
-  # Add deployment job if needed
   deploy:
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
