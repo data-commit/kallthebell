@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # Docker dependencies
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -8,3 +9,46 @@ updates:
       docker-images:
         patterns:
           - "*"
+    labels:
+      - "docker"
+      - "dependencies"
+
+  # Python pip dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-packages:
+        patterns:
+          - "*"
+    labels:
+      - "python"
+      - "dependencies"
+    commit-message:
+      prefix: "pip"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "github-actions"
+      - "dependencies"
+    commit-message:
+      prefix: "github-actions"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # Optional: If you have additional workflow directories
+  # - package-ecosystem: "github-actions"
+  #   directory: "/.github/workflows"
+  #   schedule:
+  #     interval: "weekly"
