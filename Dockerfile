@@ -1,30 +1,32 @@
-# Use official Python runtime as base image
-FROM python:3.13-slim
+# Build stage
+FROM node:20-alpine as build
 
-# Set working directory in container
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Copy package files
+COPY package*.json ./
 
-# Copy requirements file
-COPY requirements.txt .
+# Install dependencies
+RUN npm ci
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copy source code
 COPY . .
 
-# Set environment variables
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=development
+# Build the application
+RUN npm run build
 
-# Expose port
-EXPOSE 5000
+# Production stage
+FROM nginx:alpine
 
-# Command to run the application
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Copy custom nginx config if needed
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built assets from build stage
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
