@@ -1,0 +1,64 @@
+name: Track Docker Updates
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - '**/Dockerfile'
+  
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly summary
+  
+  workflow_dispatch:
+
+jobs:
+  track-updates:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyGithub
+          
+      - name: Generate Docker Updates Report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/docker_updates_tracker.py
+          
+      - name: Update Report File
+        run: |
+          if [[ -f "docker_updates.md" ]]; then
+            mkdir -p docs/docker-updates
+            MONTH_YEAR=$(date +"%Y-%m")
+            cat docker_updates.md >> "docs/docker-updates/$MONTH_YEAR.md"
+          fi
+          
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'docs: update docker images report'
+          title: 'docs: Update Docker images status report'
+          body: |
+            Automated update of Docker images status report.
+            
+            This report includes:
+            - Recent Docker image version updates
+            - Security patches and vulnerability fixes
+          branch: docker-updates
+          delete-branch: true
+          labels: |
+            documentation
+            docker
+            automated-pr
