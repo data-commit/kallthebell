@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from github import Github, PullRequest
 import re
@@ -105,7 +105,8 @@ class DockerUpdatesTracker:
 
     def collect_updates(self, days_back: int = 14):
         """Collect Docker image updates from recent PRs"""
-        since_date = datetime.now() - timedelta(days=days_back)
+        # Create timezone-aware datetime
+        since_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         pulls = self.repo.get_pulls(state='closed', sort='updated', direction='desc')
 
         for pr in pulls:
