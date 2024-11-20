@@ -1,17 +1,25 @@
 name: Docker Updates Report
-
 on:
-  schedule:
-    - cron: '0 0 * * *'  # Runs daily at midnight
-  workflow_dispatch:  # Allows manual trigger
+  # Triggers when PRs are merged
   pull_request:
     types: [closed]
+    paths:
+      - '**/Dockerfile*'
+      - '**/docker-compose*.yml'
+      - '**/docker-compose*.yaml'
+  
+  # Run daily at midnight UTC
+  schedule:
+    - cron: '0 0 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   generate-report:
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
-
+    
     steps:
     - uses: actions/checkout@v3
       with:
@@ -26,12 +34,21 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install PyGithub
-
+        
+    - name: Debug Information
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "PR Number: ${{ github.event.pull_request.number }}"
+        echo "PR Title: ${{ github.event.pull_request.title }}"
+        echo "Modified files:"
+        git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+        
     - name: Generate Docker Updates Report
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: python scripts/docker_updates_tracker.py
-
+        
     - name: Commit and push if changes exist
       run: |
         git config --global user.name "GitHub Action"
