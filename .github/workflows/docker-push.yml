@@ -119,36 +119,30 @@ jobs:
 
       - name: Update Documentation
         run: |
-          echo "# Container Image Registry" > data.md
-          echo "" >> data.md
-          echo "Last Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> data.md
-          echo "" >> data.md
-          echo "## Latest Image Information" >> data.md
-          echo "" >> data.md
-          echo "### Source Image" >> data.md
-          echo "- **Registry:** ${{ inputs.image_source }}" >> data.md
-          echo "- **Image:** \`${{ env.SOURCE_IMAGE }}\`" >> data.md
-          echo "" >> data.md
-          echo "### Destination Image" >> data.md
-          echo "- **Registry:** Docker Hub" >> data.md
-          echo "- **Image:** \`${{ env.DEST_IMAGE }}\`" >> data.md
-          echo "- **Platform:** \`${{ inputs.platform }}\`" >> data.md
-          echo "" >> data.md
-          echo "### Security Scan Summary" >> data.md
-          echo "${SCAN_SUMMARY}" >> data.md
-          echo "" >> data.md
-          echo "### Image Metadata" >> data.md
-          echo "- **Maintainer:** ABHI" >> data.md
-          echo "- **Build SHA:** \`${{ github.sha }}\`" >> data.md
-          echo "- **Build Date:** $(date -u +"%Y-%m-%d")" >> data.md
-          echo "- **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> data.md
+          # Create header if file doesn't exist
+          if [ ! -f data.md ]; then
+            echo "# Container Image Registry" > data.md
+            echo "" >> data.md
+            echo "| Date Added | Image Name | Tag | Pull Command |" >> data.md
+            echo "|------------|------------|-----|--------------|" >> data.md
+          fi
+          
+          # Append new entry (keeping existing content)
+          # Get current date in YYYY-MM-DD format
+          CURRENT_DATE=$(date +"%Y-%m-%d")
+          
+          # Create new entry
+          NEW_ENTRY="| ${CURRENT_DATE} | ${inputs.image_name} | ${inputs.image_tag} | \`docker pull ${DEST_IMAGE}\` |"
+          
+          # Insert new entry after the header (line 4)
+          sed -i "4i ${NEW_ENTRY}" data.md
 
       - name: Commit Documentation
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add data.md
-          git commit -m "docs: update image registry documentation [skip ci]"
+          git commit -m "docs: add new image ${inputs.image_name}:${inputs.image_tag} to registry [skip ci]"
           git push
 
       - name: Archive Security Report
