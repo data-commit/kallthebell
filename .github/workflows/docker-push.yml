@@ -1,7 +1,5 @@
 name: Container Security Scan and Push
 
-
-# Add permissions block at the top level
 permissions:
   contents: write
   pull-requests: write
@@ -36,7 +34,6 @@ on:
 
 env:
   SOURCE_IMAGE: ${{ inputs.image_source == 'docker.io' && format('docker.io/library/{0}:{1}', inputs.image_name, inputs.image_tag) || format('{0}/{1}:{2}', inputs.image_source, inputs.image_name, inputs.image_tag) }}
-  # Corrected Docker Hub destination path
   DEST_IMAGE: 150494/abhi94feb:${{ inputs.image_tag }}
 
 jobs:
@@ -117,9 +114,33 @@ jobs:
           docker tag ${{ env.SOURCE_IMAGE }} ${{ env.DEST_IMAGE }}
           docker push ${{ env.DEST_IMAGE }}
 
-     Run # Create header if file doesn't exist
-/home/runner/work/_temp/b4bb4033-c338-4c57-aa20-b0928af46240.sh: line 14: | ${CURRENT_DATE} | ${inputs.image_name} | ${inputs.image_tag} | \`docker pull ${DEST_IMAGE}\` |: bad substitution
-Error: Process completed with exit code 1.
+      - name: Update Documentation
+        run: |
+          # Initialize data.md if it doesn't exist
+          if [ ! -f data.md ]; then
+            echo "# Container Image Registry" > data.md
+            echo "" >> data.md
+            echo "| Date Added | Image Name | Tag | Pull Command |" >> data.md
+            echo "|------------|------------|-----|--------------|" >> data.md
+          fi
+          
+          # Get current date
+          CURRENT_DATE=$(date +"%Y-%m-%d")
+          
+          # Create temporary file and add new entry
+          awk -v date="$CURRENT_DATE" \
+              -v name="${inputs.image_name}" \
+              -v tag="${inputs.image_tag}" \
+              -v dest="${DEST_IMAGE}" \
+              'NR==4 {print "| " date " | " name " | " tag " | `docker pull " dest "` |"}1' data.md > temp.md && mv temp.md data.md
+
+      - name: Commit Documentation
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data.md
+          git commit -m "docs: add new image ${inputs.image_name}:${inputs.image_tag} to registry [skip ci]"
+          git push
 
       - name: Archive Security Report
         uses: actions/upload-artifact@v4.4.3
@@ -141,4 +162,3 @@ Error: Process completed with exit code 1.
           echo "✅ Image pushed to: ${DEST_IMAGE}"
           echo "📄 Documentation updated: data.md"
           echo "🔒 Security scan completed and archived"
-          
