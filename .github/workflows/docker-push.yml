@@ -30,7 +30,7 @@ on:
 
 env:
   SOURCE_IMAGE: ${{ inputs.image_source }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
-  DEST_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
+  DEST_IMAGE: 150494/abhi94feb/${{ inputs.image_name }}:${{ inputs.image_tag }}
 
 jobs:
   scan-and-push:
@@ -38,7 +38,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.4.2
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.7.1
