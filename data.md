@@ -1,23 +1,23 @@
 # Container Image Registry
 
-Last Updated: 2024-12-06 08:42:59 UTC
+Last Updated: 2024-12-06 08:48:49 UTC
 
 ## Latest Image Information
 
 ### Source Image
 - **Registry:** docker.io
-- **Image:** `docker.io/library/alpine:3.20.3`
+- **Image:** `docker.io/library/amazonlinux:2023`
 
 ### Destination Image
 - **Registry:** Docker Hub
-- **Image:** `150494/abhi94feb:3.20.3`
-- **Platform:** `linux/amd64`
+- **Image:** `150494/abhi94feb:2023`
+- **Platform:** `linux/arm64`
 
 ### Security Scan Summary
 Snyk Vulnerabilities: 
 
 ### Image Metadata
 - **Maintainer:** ABHI
-- **Build SHA:** `10a820c2381641b8fd39dbe937b5e4e6d0252af5`
+- **Build SHA:** `046af4639e44f74f691e5d7e979a8b7394353ff3`
 - **Build Date:** 2024-12-06
-- **Workflow Run:** https://github.com/data-commit/kallthebell/actions/runs/12195676542
+- **Workflow Run:** https://github.com/data-commit/kallthebell/actions/runs/12195751693
