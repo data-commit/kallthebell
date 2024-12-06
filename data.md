@@ -1,6 +1,7 @@
 # Container Image Registry
 
 Last Updated: 2024-12-06 08:48:49 UTC
+| 2024-12-06 | amazonlinux | 2023 | `docker pull 150494/abhi94feb:2023` |
 
 ## Latest Image Information
 
