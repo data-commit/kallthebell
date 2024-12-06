@@ -117,33 +117,9 @@ jobs:
           docker tag ${{ env.SOURCE_IMAGE }} ${{ env.DEST_IMAGE }}
           docker push ${{ env.DEST_IMAGE }}
 
-      - name: Update Documentation
-        run: |
-          # Create header if file doesn't exist
-          if [ ! -f data.md ]; then
-            echo "# Container Image Registry" > data.md
-            echo "" >> data.md
-            echo "| Date Added | Image Name | Tag | Pull Command |" >> data.md
-            echo "|------------|------------|-----|--------------|" >> data.md
-          fi
-          
-          # Append new entry (keeping existing content)
-          # Get current date in YYYY-MM-DD format
-          CURRENT_DATE=$(date +"%Y-%m-%d")
-          
-          # Create new entry
-          NEW_ENTRY="| ${CURRENT_DATE} | ${inputs.image_name} | ${inputs.image_tag} | \`docker pull ${DEST_IMAGE}\` |"
-          
-          # Insert new entry after the header (line 4)
-          sed -i "4i ${NEW_ENTRY}" data.md
-
-      - name: Commit Documentation
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add data.md
-          git commit -m "docs: add new image ${inputs.image_name}:${inputs.image_tag} to registry [skip ci]"
-          git push
+     Run # Create header if file doesn't exist
+/home/runner/work/_temp/b4bb4033-c338-4c57-aa20-b0928af46240.sh: line 14: | ${CURRENT_DATE} | ${inputs.image_name} | ${inputs.image_tag} | \`docker pull ${DEST_IMAGE}\` |: bad substitution
+Error: Process completed with exit code 1.
 
       - name: Archive Security Report
         uses: actions/upload-artifact@v4.4.3
