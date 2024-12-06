@@ -104,13 +104,13 @@ jobs:
           fi
 
       - name: Push to Docker Hub
-        id: push
         run: |
           echo "Starting image push to Docker Hub..."
+          # Debug information
+          echo "Destination image: ${{ env.DEST_IMAGE }}"
           docker tag ${{ env.SOURCE_IMAGE }} ${{ env.DEST_IMAGE }}
+          # Try push with explicit registry
           docker push ${{ env.DEST_IMAGE }}
-          echo "✅ Successfully pushed image to Docker Hub: ${{ env.DEST_IMAGE }}"
-          echo "image_url=${{ env.DEST_IMAGE }}" >> $GITHUB_OUTPUT
 
       - name: Update Documentation
         run: |
