@@ -1,5 +1,11 @@
 name: Container Security Scan and Push
 
+
+# Add permissions block at the top level
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
   workflow_dispatch:
     inputs:
