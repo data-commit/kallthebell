@@ -1,0 +1,168 @@
+name: Container Security Scan and Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_source:
+        description: 'Source registry (docker/mcr/ghcr)'
+        required: true
+        type: choice
+        options:
+        - docker.io
+        - mcr.microsoft.com
+        - ghcr.io
+      image_name:
+        description: 'Image name with repository'
+        required: true
+        type: string
+      image_tag:
+        description: 'Image tag'
+        required: true
+        type: string
+      platform:
+        description: 'Image platform'
+        required: true
+        type: choice
+        options:
+        - linux/amd64
+        - linux/arm64
+        default: 'linux/amd64'
+
+env:
+  SOURCE_IMAGE: ${{ inputs.image_source }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
+  DEST_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
+
+jobs:
+  scan-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.4.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.7.1
+
+      - name: Login to Docker Hub (Source)
+        if: ${{ inputs.image_source == 'docker.io' }}
+        uses: docker/login-action@v3.3.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Login to Microsoft Container Registry
+        if: ${{ inputs.image_source == 'mcr.microsoft.com' }}
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: mcr.microsoft.com
+          username: ${{ secrets.MCR_USERNAME }}
+          password: ${{ secrets.MCR_PASSWORD }}
+
+      - name: Login to GitHub Container Registry
+        if: ${{ inputs.image_source == 'ghcr.io' }}
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull container image
+        run: |
+          docker pull --platform ${{ inputs.platform }} ${SOURCE_IMAGE}
+
+      - name: Add ABHI maintainer label and metadata
+        run: |
+          echo 'FROM ${{ env.SOURCE_IMAGE }}
+          LABEL maintainer="kall" \
+                org.opencontainers.image.version="${{ inputs.image_tag }}" \
+                org.opencontainers.image.created="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+                org.opencontainers.image.revision="${{ github.sha }}" \
+                org.opencontainers.image.licenses="proprietary" \
+                org.opencontainers.image.vendor="CPRE" \
+                org.opencontainers.image.platform="${{ inputs.platform }}"' > Dockerfile
+          docker build -t ${{ env.SOURCE_IMAGE }} .
+
+      - name: Run Snyk Security Scan
+        id: security_scan
+        run: |
+          echo "Running Snyk security scan..."
+          snyk container test ${{ env.SOURCE_IMAGE }} --json > snyk-results.json || true
+          echo "SCAN_SUMMARY<<EOF" >> $GITHUB_ENV
+          echo "Snyk Vulnerabilities: $(jq '.vulnerabilities | length' snyk-results.json)" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Check image for best practices
+        run: |
+          IMAGE_SIZE=$(docker image inspect ${{ env.SOURCE_IMAGE }} --format='{{.Size}}')
+          echo "Image size: $(echo "scale=2; $IMAGE_SIZE/1024/1024" | bc) MB"
+          
+          LAYERS=$(docker history ${{ env.SOURCE_IMAGE }} | wc -l)
+          echo "Number of layers: $LAYERS"
+          
+          if [[ "${{ inputs.image_tag }}" == "latest" ]]; then
+            echo "Warning: Using 'latest' tag is not recommended"
+          fi
+
+      - name: Push to Docker Hub
+        id: push
+        run: |
+          echo "Starting image push to Docker Hub..."
+          docker tag ${{ env.SOURCE_IMAGE }} ${{ env.DEST_IMAGE }}
+          docker push ${{ env.DEST_IMAGE }}
+          echo "✅ Successfully pushed image to Docker Hub: ${{ env.DEST_IMAGE }}"
+          echo "image_url=${{ env.DEST_IMAGE }}" >> $GITHUB_OUTPUT
+
+      - name: Update Documentation
+        run: |
+          echo "# Container Image Registry" > data.md
+          echo "" >> data.md
+          echo "Last Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> data.md
+          echo "" >> data.md
+          echo "## Latest Image Information" >> data.md
+          echo "" >> data.md
+          echo "### Source Image" >> data.md
+          echo "- **Registry:** ${{ inputs.image_source }}" >> data.md
+          echo "- **Image:** \`${{ env.SOURCE_IMAGE }}\`" >> data.md
+          echo "" >> data.md
+          echo "### Destination Image" >> data.md
+          echo "- **Registry:** Docker Hub" >> data.md
+          echo "- **Image:** \`${{ env.DEST_IMAGE }}\`" >> data.md
+          echo "- **Platform:** \`${{ inputs.platform }}\`" >> data.md
+          echo "" >> data.md
+          echo "### Security Scan Summary" >> data.md
+          echo "${SCAN_SUMMARY}" >> data.md
+          echo "" >> data.md
+          echo "### Image Metadata" >> data.md
+          echo "- **Maintainer:** ABHI" >> data.md
+          echo "- **Build SHA:** \`${{ github.sha }}\`" >> data.md
+          echo "- **Build Date:** $(date -u +"%Y-%m-%d")" >> data.md
+          echo "- **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> data.md
+
+      - name: Commit Documentation
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data.md
+          git commit -m "docs: update image registry documentation [skip ci]"
+          git push
+
+      - name: Archive Security Report
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: security-scan-report
+          path: snyk-results.json
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker image prune -f
+          docker system prune -f
+
+      - name: Print Summary
+        run: |
+          echo "🎉 Workflow Complete!"
+          echo "Source Image: ${SOURCE_IMAGE}"
+          echo "✅ Image pushed to: ${DEST_IMAGE}"
+          echo "📄 Documentation updated: data.md"
+          echo "🔒 Security scan completed and archived"
