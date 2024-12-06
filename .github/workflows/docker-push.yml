@@ -105,7 +105,12 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag }}
           DEST_IMAGE_PATH: ${{ env.DEST_IMAGE }}
         run: |
-          # Create or truncate the data.md file
+          # Preserve existing content by copying current data.md if it exists
+          if [ -f data.md ]; then
+            cp data.md data.md.bak
+          fi
+
+          # Create new data.md with headers
           {
             echo "# Container Image Registry"
             echo
@@ -113,9 +118,9 @@ jobs:
             echo "|------------|-----|-----------|"
           } > data.md
           
-          # Add existing entries if they exist (excluding header)
+          # Add existing entries from backup (excluding header)
           if [ -f data.md.bak ]; then
-            tail -n +5 data.md.bak | sort -u >> data.md
+            tail -n +5 data.md.bak >> data.md
           fi
           
           # Add new entry
@@ -126,6 +131,9 @@ jobs:
             head -n 4 data.md
             tail -n +5 data.md | sort -u
           } > data.md.tmp && mv data.md.tmp data.md
+          
+          # Clean up backup file
+          rm -f data.md.bak
 
       - name: Commit Documentation
         run: |
