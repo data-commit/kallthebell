@@ -29,8 +29,9 @@ on:
         default: 'linux/amd64'
 
 env:
-  SOURCE_IMAGE: ${{ inputs.image_source }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
-  DEST_IMAGE: 150494/abhi94feb/${{ inputs.image_name }}:${{ inputs.image_tag }}
+  SOURCE_IMAGE: ${{ inputs.image_source == 'docker.io' && format('docker.io/library/{0}:{1}', inputs.image_name, inputs.image_tag) || format('{0}/{1}:{2}', inputs.image_source, inputs.image_name, inputs.image_tag) }}
+  # Corrected Docker Hub destination path
+  DEST_IMAGE: 150494/abhi94feb:${{ inputs.image_tag }}
 
 jobs:
   scan-and-push:
@@ -106,10 +107,8 @@ jobs:
       - name: Push to Docker Hub
         run: |
           echo "Starting image push to Docker Hub..."
-          # Debug information
           echo "Destination image: ${{ env.DEST_IMAGE }}"
           docker tag ${{ env.SOURCE_IMAGE }} ${{ env.DEST_IMAGE }}
-          # Try push with explicit registry
           docker push ${{ env.DEST_IMAGE }}
 
       - name: Update Documentation
