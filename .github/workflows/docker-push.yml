@@ -91,21 +91,6 @@ jobs:
         run: |
           echo "Running Snyk security scan..."
           snyk container test ${{ env.SOURCE_IMAGE }} --json > snyk-results.json || true
-          echo "SCAN_SUMMARY<<EOF" >> $GITHUB_ENV
-          echo "Snyk Vulnerabilities: $(jq '.vulnerabilities | length' snyk-results.json)" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Check image for best practices
-        run: |
-          IMAGE_SIZE=$(docker image inspect ${{ env.SOURCE_IMAGE }} --format='{{.Size}}')
-          echo "Image size: $(echo "scale=2; $IMAGE_SIZE/1024/1024" | bc) MB"
-          
-          LAYERS=$(docker history ${{ env.SOURCE_IMAGE }} | wc -l)
-          echo "Number of layers: $LAYERS"
-          
-          if [ "${{ inputs.image_tag }}" = "latest" ]; then
-            echo "Warning: Using 'latest' tag is not recommended"
-          fi
 
       - name: Push to Docker Hub
         run: |
@@ -120,24 +105,34 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag }}
           DEST_IMAGE_PATH: ${{ env.DEST_IMAGE }}
         run: |
-          if [ ! -f data.md ]; then
-            echo "# Container Image Registry" > data.md
-            echo "" >> data.md
-            echo "| Date Added | Image Name | Tag | Pull Command |" >> data.md
-            echo "|------------|------------|-----|--------------|" >> data.md
+          # Create or truncate the data.md file
+          {
+            echo "# Container Image Registry"
+            echo
+            echo "| Image Name | Tag | Image URL |"
+            echo "|------------|-----|-----------|"
+          } > data.md
+          
+          # Add existing entries if they exist (excluding header)
+          if [ -f data.md.bak ]; then
+            tail -n +5 data.md.bak | sort -u >> data.md
           fi
           
-          CURRENT_DATE=$(date +"%Y-%m-%d")
+          # Add new entry
+          echo "| $IMAGE_NAME | $IMAGE_TAG | \`docker pull $DEST_IMAGE_PATH\` |" >> data.md
           
-          # Create new entry and insert it after the header
-          sed -i "4i| $CURRENT_DATE | $IMAGE_NAME | $IMAGE_TAG | \`docker pull $DEST_IMAGE_PATH\` |" data.md
+          # Sort entries (excluding header) and remove duplicates
+          {
+            head -n 4 data.md
+            tail -n +5 data.md | sort -u
+          } > data.md.tmp && mv data.md.tmp data.md
 
       - name: Commit Documentation
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add data.md
-          git commit -m "docs: add new image ${{ inputs.image_name }}:${{ inputs.image_tag }} to registry [skip ci]" || echo "No changes to commit"
+          git commit -m "docs: update image registry [skip ci]" || echo "No changes to commit"
           git push
 
       - name: Archive Security Report
@@ -159,4 +154,3 @@ jobs:
           echo "Source Image: ${{ env.SOURCE_IMAGE }}"
           echo "✅ Image pushed to: ${{ env.DEST_IMAGE }}"
           echo "📄 Documentation updated: data.md"
-          echo "🔒 Security scan completed and archived"
