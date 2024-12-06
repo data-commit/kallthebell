@@ -72,18 +72,18 @@ jobs:
 
       - name: Pull container image
         run: |
-          docker pull --platform ${{ inputs.platform }} ${SOURCE_IMAGE}
+          docker pull --platform ${{ inputs.platform }} ${{ env.SOURCE_IMAGE }}
 
       - name: Add ABHI maintainer label and metadata
         run: |
-          echo 'FROM ${{ env.SOURCE_IMAGE }}
-          LABEL maintainer="kall" \
-                org.opencontainers.image.version="${{ inputs.image_tag }}" \
-                org.opencontainers.image.created="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-                org.opencontainers.image.revision="${{ github.sha }}" \
-                org.opencontainers.image.licenses="proprietary" \
-                org.opencontainers.image.vendor="CPRE" \
-                org.opencontainers.image.platform="${{ inputs.platform }}"' > Dockerfile
+          echo "FROM ${{ env.SOURCE_IMAGE }}
+          LABEL maintainer=\"kall\" \\
+                org.opencontainers.image.version=\"${{ inputs.image_tag }}\" \\
+                org.opencontainers.image.created=\"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\" \\
+                org.opencontainers.image.revision=\"${{ github.sha }}\" \\
+                org.opencontainers.image.licenses=\"proprietary\" \\
+                org.opencontainers.image.vendor=\"CPRE\" \\
+                org.opencontainers.image.platform=\"${{ inputs.platform }}\"" > Dockerfile
           docker build -t ${{ env.SOURCE_IMAGE }} .
 
       - name: Run Snyk Security Scan
@@ -103,7 +103,7 @@ jobs:
           LAYERS=$(docker history ${{ env.SOURCE_IMAGE }} | wc -l)
           echo "Number of layers: $LAYERS"
           
-          if [[ "${{ inputs.image_tag }}" == "latest" ]]; then
+          if [ "${{ inputs.image_tag }}" = "latest" ]; then
             echo "Warning: Using 'latest' tag is not recommended"
           fi
 
@@ -115,8 +115,11 @@ jobs:
           docker push ${{ env.DEST_IMAGE }}
 
       - name: Update Documentation
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          DEST_IMAGE_PATH: ${{ env.DEST_IMAGE }}
         run: |
-          # Initialize data.md if it doesn't exist
           if [ ! -f data.md ]; then
             echo "# Container Image Registry" > data.md
             echo "" >> data.md
@@ -124,22 +127,17 @@ jobs:
             echo "|------------|------------|-----|--------------|" >> data.md
           fi
           
-          # Get current date
           CURRENT_DATE=$(date +"%Y-%m-%d")
           
-          # Create temporary file and add new entry
-          awk -v date="$CURRENT_DATE" \
-              -v name="${inputs.image_name}" \
-              -v tag="${inputs.image_tag}" \
-              -v dest="${DEST_IMAGE}" \
-              'NR==4 {print "| " date " | " name " | " tag " | `docker pull " dest "` |"}1' data.md > temp.md && mv temp.md data.md
+          # Create new entry and insert it after the header
+          sed -i "4i| $CURRENT_DATE | $IMAGE_NAME | $IMAGE_TAG | \`docker pull $DEST_IMAGE_PATH\` |" data.md
 
       - name: Commit Documentation
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add data.md
-          git commit -m "docs: add new image ${inputs.image_name}:${inputs.image_tag} to registry [skip ci]"
+          git commit -m "docs: add new image ${{ inputs.image_name }}:${{ inputs.image_tag }} to registry [skip ci]" || echo "No changes to commit"
           git push
 
       - name: Archive Security Report
@@ -158,7 +156,7 @@ jobs:
       - name: Print Summary
         run: |
           echo "🎉 Workflow Complete!"
-          echo "Source Image: ${SOURCE_IMAGE}"
-          echo "✅ Image pushed to: ${DEST_IMAGE}"
+          echo "Source Image: ${{ env.SOURCE_IMAGE }}"
+          echo "✅ Image pushed to: ${{ env.DEST_IMAGE }}"
           echo "📄 Documentation updated: data.md"
           echo "🔒 Security scan completed and archived"
