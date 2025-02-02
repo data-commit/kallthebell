@@ -1,7 +1,7 @@
 name: CI/CD Pipeline
 
 on:
-  workflow_dispatch:  # Added manual trigger
+  workflow_dispatch:  # Manual trigger
   push:
     branches:
       - main
@@ -19,38 +19,42 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  # Updated to latest version
+      uses: actions/checkout@v4
 
     - name: Configure AWS credentials (OIDC)
-      uses: aws-actions/configure-aws-credentials@v4  # Updated to latest version
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         role-session-name: GitHubActions
         aws-region: us-east-1
 
     - name: Set up Python
-      uses: actions/setup-python@v5  # Simplified version number
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
-        cache: 'pip'  # Added pip caching for better performance
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        
 
     - name: Run tests
       run: python -m unittest discover tests/
 
+    - name: Force failure (for testing)
+      run: exit 1  # This will intentionally fail the build
+
     - name: Notify on success
-      if: success()  # Changed from always() to success()
+      if: success()
       run: |
         aws sns publish \
           --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
-          --message "✅ GitHub Actions Build Succeeded for ${{ github.repository }}"
+          --message "✅ GitHub Actions Build Succeeded for ${{ github.repository }} on branch ${{ github.ref }} with commit ${{ github.sha }}"
 
     - name: Notify on failure
       if: failure()
       run: |
         aws sns publish \
           --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
-          --message "❌ GitHub Actions Build Failed for ${{ github.repository }}"
+          --message "❌ GitHub Actions Build Failed for ${{ github.repository }} on branch ${{ github.ref }} with commit ${{ github.sha }}. View logs: ${{ github.server_url }}/${{ github.repository }}/runs/${{ github.run_id }}"
