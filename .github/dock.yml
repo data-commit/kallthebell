@@ -1,57 +1,51 @@
-name: Docker Updates Report
-on:
-  # Triggers when PRs are merged
+name: CI/CD Pipeline
+
+on: 
+  push:
+    branches:
+      - main
   pull_request:
-    types: [closed]
-    paths:
-      - '**/Dockerfile*'
-      - '**/docker-compose*.yml'
-      - '**/docker-compose*.yaml'
-  
-  # Run daily at midnight UTC
-  schedule:
-    - cron: '0 0 * * *'
-  
-  # Allow manual trigger
-  workflow_dispatch:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  generate-report:
+  build:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
-    
+
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v4.2.2
+
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4.0.3
       with:
-        fetch-depth: 0
-        
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        role-session-name: GitHubActions
+        aws-region: us-east-1
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5.2.0
       with:
-        python-version: '3.x'
-        
+        python-version: '3.9'
+
     - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run tests
+      run: python -m unittest discover tests/
+
+    - name: Notify on success
+      if: success()
       run: |
-        python -m pip install --upgrade pip
-        pip install PyGithub
-        
-    - name: Debug Information
-      if: github.event_name == 'pull_request'
+        aws sns publish --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+          --message "✅ GitHub Actions Build Succeeded for $GITHUB_REPOSITORY"
+
+    - name: Notify on failure
+      if: failure()
       run: |
-        echo "PR Number: ${{ github.event.pull_request.number }}"
-        echo "PR Title: ${{ github.event.pull_request.title }}"
-        echo "Modified files:"
-        git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
-        
-    - name: Generate Docker Updates Report
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-      run: python scripts/docker_updates_tracker.py
-        
-    - name: Commit and push if changes exist
-      run: |
-        git config --global user.name "GitHub Action"
-        git config --global user.email "action@github.com"
-        git add docs/docker-updates/
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Update Docker updates report" && git push)
+        aws sns publish --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+          --message "❌ GitHub Actions Build Failed for $GITHUB_REPOSITORY"
