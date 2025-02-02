@@ -1,6 +1,7 @@
 name: CI/CD Pipeline
 
-on: 
+on:
+  workflow_dispatch:  # Added manual trigger
   push:
     branches:
       - main
@@ -18,34 +19,39 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # Updated to latest version
 
     - name: Configure AWS credentials (OIDC)
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v4  # Updated to latest version
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         role-session-name: GitHubActions
         aws-region: us-east-1
 
     - name: Set up Python
-      uses: actions/setup-python@v5.2.0
+      uses: actions/setup-python@v5  # Simplified version number
       with:
         python-version: '3.9'
+        cache: 'pip'  # Added pip caching for better performance
 
     - name: Install dependencies
-      run: pip install -r requirements.txt
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
 
     - name: Run tests
       run: python -m unittest discover tests/
 
     - name: Notify on success
-      if: always()
+      if: success()  # Changed from always() to success()
       run: |
-        aws sns publish --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
-          --message "✅ GitHub Actions Build Succeeded for $GITHUB_REPOSITORY"
+        aws sns publish \
+          --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+          --message "✅ GitHub Actions Build Succeeded for ${{ github.repository }}"
 
     - name: Notify on failure
       if: failure()
       run: |
-        aws sns publish --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
-          --message "❌ GitHub Actions Build Failed for $GITHUB_REPOSITORY"
+        aws sns publish \
+          --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+          --message "❌ GitHub Actions Build Failed for ${{ github.repository }}"
