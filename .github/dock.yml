@@ -18,10 +18,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4.2.2
+      uses: actions/checkout@v3
 
     - name: Configure AWS credentials (OIDC)
-      uses: aws-actions/configure-aws-credentials@v4.0.3
+      uses: aws-actions/configure-aws-credentials@v2
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         role-session-name: GitHubActions
@@ -39,7 +39,7 @@ jobs:
       run: python -m unittest discover tests/
 
     - name: Notify on success
-      if: success()
+      if: always()
       run: |
         aws sns publish --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
           --message "✅ GitHub Actions Build Succeeded for $GITHUB_REPOSITORY"
