@@ -4,26 +4,26 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  pull-requests: write
-  contents: write
-
 jobs:
   auto-merge-dependabot:
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v3
+
+      - name: Authenticate GitHub CLI with PAT
+        run: |
+          echo "${{ secrets.PAT_TOKEN }}" | gh auth login --with-token
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Auto-approve the PR
-        run: gh pr review --approve "$PR_URL"
+        run: gh pr review --approve "${{ github.event.pull_request.number }}"
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Auto-merge the PR
-        run: gh pr merge --auto --merge "$PR_URL"
+        run: gh pr merge --squash "${{ github.event.pull_request.number }}" -m "Auto merged Dependabot PR"
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
