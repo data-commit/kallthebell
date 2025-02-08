@@ -2,12 +2,12 @@ name: CI/CD Pipeline
 
 on:
   workflow_dispatch:  # Manual trigger
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
 
 permissions:
   id-token: write
