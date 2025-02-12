@@ -28,10 +28,11 @@ jobs:
 
     - name: Create test_main.py
       run: |
+      
         echo "from main import add" > test_main.py
         echo "" >> test_main.py
         echo "def test_add():" >> test_main.py
-        echo "    assert add(2, 2) == 5, 'Test failed: 2 + 2 should equal 5'" >> test_main.py
+        echo "    assert add(2, 2) == 4, 'Test failed: 2 + 2 should equal 4'" >> test_main.py
 
     - name: Run Tests
       run: |
