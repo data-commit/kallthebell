@@ -5,8 +5,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest  # Run on the latest Ubuntu environment
-
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.10-slim
+      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4.2.0  # Check out the repository code
