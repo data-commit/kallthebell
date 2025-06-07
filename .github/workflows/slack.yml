@@ -1,8 +1,5 @@
-# .github/workflows/pr-slack-notify.yml
-
 name: Slack PR Notification
 
-# This workflow runs whenever a pull request is opened
 on:
   pull_request:
     types: [opened]
@@ -13,21 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send PR Notification to Slack
-        id: slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
-          # THIS IS THE CRITICAL FIX.
-          # The pipe symbol '|' tells YAML to treat the following
-          # indented block as a single, multi-line string, preserving
-          # the JSON structure.
+          # The pipe '|' symbol is critical. It tells YAML to treat
+          # the indented block below as a single string.
           payload: |
             {
+              "text": "New Pull Request: ${{ github.event.pull_request.title }}",
               "blocks": [
                 {
-                  "type": "section",
+                  "type": "header",
                   "text": {
-                    "type": "mrkdwn",
-                    "text": "🎉 *New Pull Request Created!* 🎉"
+                    "type": "plain_text",
+                    "text": "🎉 New Pull Request"
                   }
                 },
                 {
@@ -47,7 +42,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*PR Title:*\n`${{ github.event.pull_request.title }}`"
+                    "text": "*Title:*\n${{ github.event.pull_request.title }}"
                   }
                 },
                 {
@@ -67,5 +62,4 @@ jobs:
               ]
             }
         env:
-          # Your Slack Webhook URL secret must be configured in repository settings
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
