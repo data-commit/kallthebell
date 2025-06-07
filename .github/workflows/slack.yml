@@ -1,0 +1,66 @@
+# .github/workflows/pr-slack-notify.yml
+
+name: Slack PR Notification
+
+# This workflow runs whenever a pull request is opened
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  slack_notification:
+    name: Send Slack Notification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PR Notification to Slack
+        id: slack
+        # We are using a popular pre-built Slack Action
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          # The custom message payload
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🎉 *New Pull Request!* 🎉"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n`${{ github.repository }}`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Author:*\n`${{ github.actor }}`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*PR Title:*\n`${{ github.event.pull_request.title }}`"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Pull Request",
+                        "emoji": true
+                      },
+                      "url": "${{ github.event.pull_request.html_url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          # Use the Slack Webhook URL secret you created
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
