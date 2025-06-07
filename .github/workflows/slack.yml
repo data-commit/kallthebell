@@ -12,33 +12,26 @@ jobs:
     name: Send Slack Notification
     runs-on: ubuntu-latest
     steps:
+      # .github/workflows/pr-slack-notify.yml
+
       - name: Send PR Notification to Slack
         id: slack
-        # We are using a popular pre-built Slack Action
         uses: slackapi/slack-github-action@v1.26.0
         with:
-          # The custom message payload
-          payload: |
+          # Use a multi-line string ('>') to ensure the JSON is passed correctly.
+          payload: >
             {
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "🎉 *New Pull Request!* 🎉"
+                    "text": "🎉 *New Pull Request!* 🎉\n\n*Repository:*\n`${{ github.repository }}`\n*Author:*\n`${{ github.actor }}`"
                   }
                 },
                 {
                   "type": "section",
                   "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:*\n`${{ github.repository }}`"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Author:*\n`${{ github.actor }}`"
-                    },
                     {
                       "type": "mrkdwn",
                       "text": "*PR Title:*\n`${{ github.event.pull_request.title }}`"
@@ -62,5 +55,5 @@ jobs:
               ]
             }
         env:
-          # Use the Slack Webhook URL secret you created
+          # Your Slack Webhook URL secret
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
